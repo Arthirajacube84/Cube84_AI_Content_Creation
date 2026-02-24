@@ -11,8 +11,8 @@ print(f"INFO: Running with MODEL_NAME: {os.getenv('MODEL_NAME', 'llama-3.3-70b-v
 
 # API Keys
 # SECURITY WARNING: For production, set these as environment variables
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY","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")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY","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")
 
 # Configuration
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
