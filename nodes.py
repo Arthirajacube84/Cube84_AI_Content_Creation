@@ -49,9 +49,14 @@ def check_content_request(state: ChatState):
         # Assume short response is the topic
         return {**state, "ai_response": f"CONTENT_REQUEST: {state['user_input']} | {state['content_type']}"}
     
-    prompt = f"""Analyze this user message: "{state["user_input"]}"
+    prompt = f"""Conversation History:
+    {state.get("messages", [])[-6:]}
+
+    Latest User Message: "{state["user_input"]}"
     
-    Look for keywords that indicate CONTENT CREATION: create, write, make, generate, develop, produce, draft, compose, build, design, give me + content/blog/email/video/script/post/article
+    Current State: Topic={state.get("topic")}, Content Type={state.get("content_type")}
+
+    Analyze the message based on the rules below.
     
     RULES:
     1. If user mentions specific topic AND specific type (blog/email/video): "CONTENT_REQUEST: [topic] | [TYPE]"
@@ -60,22 +65,29 @@ def check_content_request(state: ChatState):
        - "create content for project manager" -> "ASK_TYPE: project manager"
     3. If user mentions specific type (blog/email/video) but NO topic: "ASK_TOPIC: [TYPE]"
        - "create a blog" -> "ASK_TOPIC: BLOG"
-       - "write an email" -> "ASK_TOPIC: EMAIL"
     4. If user wants content but NO topic and NO type: "ASK_BOTH"
        - "need content creation" -> "ASK_BOTH"
-       - "create some content" -> "ASK_BOTH"
-    5. If user says a greeting (hi, hello, hey, etc.): "GREETING: Hello! I can help you create blogs, emails, and video scripts. What would you like to create today?"
-    6. If user asks to PICK or SELECT from previous results: "SELECT_BEST: [user_input]"
-    7. If user asks to EDIT, ADJUST, REVISE, or MODIFY previous content: "EDIT_CONTENT: [user_input]"
-    8. If user asks for RESEARCH REFERENCES, SOURCES, or LINKS: "PROVIDE_REFERENCES: [user_input]"
-    9. If user says thanks or acknowledges: "GREETING: I am glad I could help! Is there anything else I can assist you with?"
-    10. If not about content creation: "I apologize, but I can only assist with content creation. How can I help you create content today?"
-    
+    5. If the message is a FOLLOW-UP question or comment RELATED to the previous AI response or current state: "RELATED_QUERY: [user_input]"
+    6. If user says a greeting (hi, hello, etc.): "GREETING: [polite greeting]"
+    7. If user asks to PICK or SELECT from previous results: "SELECT_BEST: [user_input]"
+    8. If user asks to EDIT, ADJUST, or MODIFY previous content: "EDIT_CONTENT: [user_input]"
+    9. If user asks for RESEARCH REFERENCES: "PROVIDE_REFERENCES: [user_input]"
+    10. If the message is NOT about content creation or the current conversation topic: "OFF_TOPIC: [message]"
+
     Respond with EXACTLY one of the formats above.
     """
     
     response = llm.invoke(prompt)
     ai_response = response.content.strip()
+
+    if ai_response.startswith("OFF_TOPIC:"):
+        return {**state, "ai_response": "I apologize, but I can only assist with content creation or topics related to our current project. How can I help you create content today?"}
+        
+    if ai_response.startswith("RELATED_QUERY:"):
+        # Process as a general question using history
+        prompt_related = f"Based on our conversation history: {state.get('messages', [])[-6:]}\n\nUser asked: {state['user_input']}\n\nPlease provide a helpful answer related to our current work."
+        response_related = llm.invoke(prompt_related)
+        return {**state, "ai_response": response_related.content}
     
     if ai_response.startswith("GREETING: "):
         ai_response = ai_response.replace("GREETING: ", "")
@@ -280,4 +292,4 @@ def display_response(state: ChatState):
         f"AI: {state['ai_response']}"
     ]
     
-    return {**state, "messages": new_messages, "topic": None, "content_type": None}
+    return {**state, "messages": new_messages}
