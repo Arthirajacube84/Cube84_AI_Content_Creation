@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Creator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ AI Content Creator</h1>
+        </header>
+
+        <div class="chat-container">
+            <div id="welcome-message" class="welcome-message" style="text-align: center; margin: auto; padding: 2rem; color: #555;">
+                <h2 style="font-weight: 500; font-size: 1.5rem;">I am Your assistant for Blogs, Emails, and Video Scripts</h2>
+                <p style="margin-top: 10px; opacity: 0.8;">How can I help you create content today?</p>
+            </div>
+            
+            <div id="chat-box" class="chat-box" style="display: none;">
+                <!-- Chat messages will be injected here -->
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Type your request here..." autocomplete="off">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const welcomeMessage = document.getElementById('welcome-message');
+        let isFirstMessage = true;
+
+        // Allow Enter key to send
+        userInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Hide welcome message and show chat box on first message
+            if (isFirstMessage) {
+                welcomeMessage.style.display = 'none';
+                chatBox.style.display = 'block';
+                isFirstMessage = false;
+            }
+
+            // Add User Message to Chat
+            addMessage(message, 'user-message');
+            userInput.value = '';
+            
+            // Show loading...
+            const loadingId = addMessage('Thinking...', 'ai-message', true);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+                
+                // Remove loading message
+                removeMessage(loadingId);
+
+                if (data.status === 'success') {
+                    addMessage(data.response, 'ai-message');
+                } else {
+                    addMessage('Error: ' + data.error, 'ai-message error');
+                }
+
+            } catch (error) {
+                removeMessage(loadingId);
+                addMessage('Network Error: ' + error, 'ai-message error');
+            }
+        }
+
+        function addMessage(text, className, isLoading = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${className}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Format newlines as <br>
+            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(contentDiv);
+            chatBox.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (isLoading) {
+                const id = 'msg-' + Date.now();
+                messageDiv.id = id;
+                return id;
+            }
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+    </script>
+</body>
+</html>
