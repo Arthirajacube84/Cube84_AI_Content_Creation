@@ -14,7 +14,7 @@ def route_response(state: ChatState):
         return "research"
     elif val in ["SELECT_BEST", "EDIT_CONTENT", "PROVIDE_REFERENCES"]:
         return val.lower()
-    elif "ASK_TYPE:" in val:
+    elif "ASK_TYPE:" in val or "ASK_TOPIC:" in val or "ASK_BOTH" in val:
         return "ask_type"
     else:
         return "display"

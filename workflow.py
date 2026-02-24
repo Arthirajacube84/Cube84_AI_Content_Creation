@@ -3,7 +3,7 @@ from state import ChatState
 from nodes import (
     get_user_input,
     check_content_request,
-    ask_content_type,
+    handle_missing_info,
     research_topic,
     create_content,
     display_response
@@ -16,7 +16,7 @@ workflow = StateGraph(ChatState)
 # Add nodes
 workflow.add_node("get_input", get_user_input)
 workflow.add_node("check_request", check_content_request)
-workflow.add_node("ask_type", ask_content_type)
+workflow.add_node("ask_type", handle_missing_info)
 workflow.add_node("research", research_topic)
 workflow.add_node("create_content", create_content)
 workflow.add_node("display", display_response)

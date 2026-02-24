@@ -28,9 +28,11 @@ def check_content_request(state: ChatState):
     if state["user_input"] == "QUIT":
         return {**state, "ai_response": "Goodbye! Have a great day!"}
     
-    # Check if this is a follow-up response to content type question
+    # Check if this is a follow-up response to content type question OR topic question
     user_input_lower = state["user_input"].lower().strip()
-    if state.get("topic") and ("blog" in user_input_lower or "email" in user_input_lower or "video" in user_input_lower):
+    
+    # CASE 1: We had a topic, now we get a type
+    if state.get("topic") and not state.get("content_type") and ("blog" in user_input_lower or "email" in user_input_lower or "video" in user_input_lower):
         if "blog" in user_input_lower:
             content_type = "BLOG"
         elif "email" in user_input_lower:
@@ -39,26 +41,35 @@ def check_content_request(state: ChatState):
             content_type = "VIDEO"
         else:
             content_type = "BLOG" # Default fallback
-        
         return {**state, "ai_response": f"CONTENT_REQUEST: {state['topic']} | {content_type}"}
+    
+    # CASE 2: We had a type, now we get a topic
+    # If content_type is set and user_input doesn't look like a new unrelated command
+    if state.get("content_type") and not state.get("topic") and len(user_input_lower.split()) < 10: 
+        # Assume short response is the topic
+        return {**state, "ai_response": f"CONTENT_REQUEST: {state['user_input']} | {state['content_type']}"}
     
     prompt = f"""Analyze this user message: "{state["user_input"]}"
     
     Look for keywords that indicate CONTENT CREATION: create, write, make, generate, develop, produce, draft, compose, build, design, give me + content/blog/email/video/script/post/article
     
     RULES:
-    1. If user mentions specific type (blog/email/video): "CONTENT_REQUEST: [topic] | [TYPE]"
-       - "give blog for salesforce" -> "CONTENT_REQUEST: Salesforce | BLOG" (Type must be BLOG, EMAIL, or VIDEO)
-       - If type is similar to video (e.g. youtube), map to VIDEO.
-       - If type is similar to email (e.g. newsletter), map to EMAIL.
-    2. If user wants content but no specific type: "ASK_TYPE: [topic]"
+    1. If user mentions specific topic AND specific type (blog/email/video): "CONTENT_REQUEST: [topic] | [TYPE]"
+       - "give blog for salesforce" -> "CONTENT_REQUEST: Salesforce | BLOG"
+    2. If user mentions specific topic but NO type: "ASK_TYPE: [topic]"
        - "create content for project manager" -> "ASK_TYPE: project manager"
-    3. If user says a greeting (hi, hello, hey, etc.): "GREETING: Hello! I can help you create blogs, emails, and video scripts. What would you like to create today?"
-    4. If user asks to PICK or SELECT from previous results (e.g. "get the best blog", "which is best", "choose one"): "SELECT_BEST: [user_input]"
-    5. If user asks to EDIT, ADJUST, REVISE, or MODIFY the previously generated content: "EDIT_CONTENT: [user_input]"
-    6. If user asks for RESEARCH REFERENCES, SOURCES, or LINKS from the previous topic: "PROVIDE_REFERENCES: [user_input]"
-    7. If user says thanks, thank you, or acknowledges the content: "GREETING: I am glad I could help! Is there anything else I can assist you with regarding content creation?"
-    8. If not about content creation: "I apologize, but I can only assist with content creation. How can I help you create content today?"
+    3. If user mentions specific type (blog/email/video) but NO topic: "ASK_TOPIC: [TYPE]"
+       - "create a blog" -> "ASK_TOPIC: BLOG"
+       - "write an email" -> "ASK_TOPIC: EMAIL"
+    4. If user wants content but NO topic and NO type: "ASK_BOTH"
+       - "need content creation" -> "ASK_BOTH"
+       - "create some content" -> "ASK_BOTH"
+    5. If user says a greeting (hi, hello, hey, etc.): "GREETING: Hello! I can help you create blogs, emails, and video scripts. What would you like to create today?"
+    6. If user asks to PICK or SELECT from previous results: "SELECT_BEST: [user_input]"
+    7. If user asks to EDIT, ADJUST, REVISE, or MODIFY previous content: "EDIT_CONTENT: [user_input]"
+    8. If user asks for RESEARCH REFERENCES, SOURCES, or LINKS: "PROVIDE_REFERENCES: [user_input]"
+    9. If user says thanks or acknowledges: "GREETING: I am glad I could help! Is there anything else I can assist you with?"
+    10. If not about content creation: "I apologize, but I can only assist with content creation. How can I help you create content today?"
     
     Respond with EXACTLY one of the formats above.
     """
@@ -83,15 +94,25 @@ def check_content_request(state: ChatState):
     
     return {**state, "ai_response": ai_response}
 
-def ask_content_type(state: ChatState):
-    """Ask user to specify content type"""
-    if "ASK_TYPE:" not in state["ai_response"]:
-        return state
+def handle_missing_info(state: ChatState):
+    """Ask user to specify missing topic, type, or both"""
+    ai_response = state["ai_response"]
     
-    topic = state["ai_response"].replace("ASK_TYPE: ", "")
-    response = f"I'd be happy to help you create content about {topic}! What type of content would you like me to create?\n\n1. Blog post\n2. Email\n3. Video script\n\nPlease specify which type you'd prefer."
-    
-    return {**state, "ai_response": response, "topic": topic}
+    if "ASK_TYPE:" in ai_response:
+        topic = ai_response.replace("ASK_TYPE: ", "")
+        response = f"I'd be happy to help you create content about {topic}! What type of content would you like me to create?\n\n1. Blog post\n2. Email\n3. Video script\n\nPlease specify which type you'd prefer."
+        return {**state, "ai_response": response, "topic": topic}
+        
+    elif "ASK_TOPIC:" in ai_response:
+        content_type = ai_response.replace("ASK_TOPIC: ", "").strip()
+        response = f"I can definitely help you create a {content_type.lower()}! What topic should I cover in this {content_type.lower()}?"
+        return {**state, "ai_response": response, "content_type": content_type}
+        
+    elif "ASK_BOTH" in ai_response:
+        response = "I'd love to help you create some content! To get started, could you tell me:\n1. What topic would you like to cover?\n2. What type of content do you need (Blog post, Email, or Video script)?"
+        return {**state, "ai_response": response}
+        
+    return state
 
 def research_topic(state: ChatState):
     """Research topic using Tavily API"""
@@ -259,4 +280,4 @@ def display_response(state: ChatState):
         f"AI: {state['ai_response']}"
     ]
     
-    return {**state, "messages": new_messages}
+    return {**state, "messages": new_messages, "topic": None, "content_type": None}
