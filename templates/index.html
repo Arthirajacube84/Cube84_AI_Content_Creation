@@ -7,6 +7,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .message-content h1, .message-content h2, .message-content h3 {
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+        .message-content ul, .message-content ol {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        .message-content p {
+            margin-bottom: 10px;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -95,8 +114,13 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // Format newlines as <br>
-            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            // Render Markdown using marked.js
+            if (className.includes('ai-message') && !isLoading) {
+                contentDiv.innerHTML = marked.parse(text);
+            } else {
+                // Fallback for user messages or loading state
+                contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            }
             
             messageDiv.appendChild(contentDiv);
             chatBox.appendChild(messageDiv);
