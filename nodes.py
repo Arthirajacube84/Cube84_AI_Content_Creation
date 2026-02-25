@@ -68,7 +68,7 @@ def check_content_request(state: ChatState):
     4. If user wants content but NO topic and NO type: "ASK_BOTH"
        - "need content creation" -> "ASK_BOTH"
     5. If the message is a FOLLOW-UP question or comment RELATED to the previous AI response or current state: "RELATED_QUERY: [user_input]"
-    6. If user says a greeting (hi, hello, etc.): "GREETING: [polite greeting]"
+    6. If user says a greeting (hi, hello, etc.): "GREETING: [A professional greeting that introduces yourself as an AI content creation assistant and explains how you can help with blogs, emails, and scripts]"
     7. If user asks to PICK or SELECT from previous results: "SELECT_BEST: [user_input]"
     8. If user asks to EDIT, ADJUST, or MODIFY previous content: "EDIT_CONTENT: [user_input]"
     9. If user asks for RESEARCH REFERENCES: "PROVIDE_REFERENCES: [user_input]"
